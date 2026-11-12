@@ -135,43 +135,120 @@ export default function Profile() {
     return newErrors;
   }
 
-  function handleSave(e) {
-    e.preventDefault();
+  
+function handleSave(e) {
+  e.preventDefault();
 
-    const validationErrors = validateProfile();
-    setErrors(validationErrors);
+  const validationErrors = validateProfile();
+  setErrors(validationErrors);
 
-    if (Object.keys(validationErrors).length > 0) {
-      setSaved(false);
-      return;
-    }
-
-    try {
-      localStorage.setItem("internly_profile", JSON.stringify(profile));
-      setEditing(false);
-      setSaved(true);
-    } catch (error) {
-      alert("Could not save your profile. Please try again.");
-    }
+  if (Object.keys(validationErrors).length > 0) {
+    setSaved(false);
+    return;
   }
 
+  try {
+    // Save the student's own profile
+    localStorage.setItem(
+      "internly_profile",
+      JSON.stringify(profile)
+    );
+
+    // Find the currently logged-in student
+    const currentStudent = JSON.parse(
+      localStorage.getItem("internly_current_student") || "null"
+    );
+
+    // Update the student record used by recruiters
+    if (currentStudent) {
+      const students = JSON.parse(
+        localStorage.getItem("internly_students") || "[]"
+      );
+
+      const updatedStudents = students.map((student) => {
+        const isCurrentStudent =
+          student.id === currentStudent.id ||
+          student.profile?.email?.toLowerCase() ===
+            currentStudent.email?.toLowerCase();
+
+        if (!isCurrentStudent) return student;
+
+        const savedSkills = JSON.parse(
+          localStorage.getItem("internly_skills") || "[]"
+        );
+
+        const profileSkills = profile.skills
+          .split(",")
+          .map((skill) => skill.trim())
+          .filter(Boolean)
+          .map((name) => ({ name, level: "Not specified" }));
+
+        const combinedSkills = [
+          ...savedSkills,
+          ...profileSkills.filter(
+            (newSkill) =>
+              !savedSkills.some(
+                (skill) =>
+                  skill.name.toLowerCase() === newSkill.name.toLowerCase()
+              )
+          ),
+        ];
+
+        return {
+          ...student,
+          profile: {
+            ...student.profile,
+            ...profile,
+          },
+          skills: combinedSkills,
+          certifications: JSON.parse(
+            localStorage.getItem("internly_certifications") || "[]"
+          ),
+          resumeName:
+            localStorage.getItem("internly_resume_name") || "",
+        };
+      });
+
+      localStorage.setItem(
+        "internly_students",
+        JSON.stringify(updatedStudents)
+      );
+    }
+
+    setEditing(false);
+    setSaved(true);
+  } catch (error) {
+    console.error("Profile save error:", error);
+    alert("Could not save your profile. Please try again.");
+  }
+}
+
+
+  
   function handleResume(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const allowedExtensions = /\.(pdf|doc|docx)$/i;
     const allowedTypes = [
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
 
-    const allowedExtensions = /\.(pdf|doc|docx)$/i;
-
+    // Validate file extension and type
     if (
-      !allowedTypes.includes(file.type) &&
-      !allowedExtensions.test(file.name)
+      !allowedExtensions.test(file.name) ||
+      (file.type && !allowedTypes.includes(file.type))
     ) {
-      alert("Only PDF, DOC and DOCX files are allowed.");
+      alert("Invalid file. Please upload only PDF, DOC or DOCX files.");
+      e.target.value = "";
+      return;
+    }
+
+    // Validate file size (maximum 5 MB)
+    if (file.size === 0) {
+      alert("The selected file is empty. Please choose another file.");
       e.target.value = "";
       return;
     }
@@ -182,17 +259,91 @@ export default function Profile() {
       return;
     }
 
-    setResumeName(file.name);
-    localStorage.setItem("internly_resume_name", file.name);
+    try {
+      setResumeName(file.name);
+      localStorage.setItem("internly_resume_name", file.name);
+
+      // Update the recruiter's student record
+      const currentStudent = JSON.parse(
+        localStorage.getItem("internly_current_student") || "null"
+      );
+
+      if (currentStudent) {
+        const students = JSON.parse(
+          localStorage.getItem("internly_students") || "[]"
+        );
+
+        const updatedStudents = students.map((student) => {
+          const isCurrentStudent =
+            student.id === currentStudent.id ||
+            student.profile?.email?.toLowerCase() ===
+              currentStudent.email?.toLowerCase();
+
+          return isCurrentStudent
+            ? { ...student, resumeName: file.name }
+            : student;
+        });
+
+        localStorage.setItem(
+          "internly_students",
+          JSON.stringify(updatedStudents)
+        );
+      }
+
+      alert("Resume uploaded successfully!");
+    } catch (error) {
+      console.error("Resume upload error:", error);
+      alert("Could not save your resume details. Please try again.");
+    }
+
+    e.target.value = "";
   }
 
   const fields = [
-    { label: "Full Name", name: "name", icon: User, placeholder: "Enter your full name" },
-    { label: "Email Address", name: "email", icon: Mail, placeholder: "you@gmail.com", type: "email" },
-    { label: "Phone Number", name: "phone", icon: Phone, placeholder: "10-digit mobile number", type: "tel" },
-    { label: "College / University", name: "college", icon: GraduationCap, placeholder: "Enter your college name" },
-    { label: "Graduation Year", name: "graduationYear", icon: Calendar, placeholder: "e.g. 2027" },
-    { label: "Location", name: "location", icon: MapPin, placeholder: "e.g. Bengaluru, India" },
+    {
+      label: "Full Name",
+      name: "name",
+      icon: User,
+      placeholder: "Enter your full name",
+      maxLength: 100,
+    },
+    {
+      label: "Email Address",
+      name: "email",
+      icon: Mail,
+      placeholder: "you@gmail.com",
+      type: "email",
+      maxLength: 254,
+    },
+    {
+      label: "Phone Number",
+      name: "phone",
+      icon: Phone,
+      placeholder: "10-digit mobile number",
+      type: "tel",
+      maxLength: 10,
+    },
+    {
+      label: "College / University",
+      name: "college",
+      icon: GraduationCap,
+      placeholder: "Enter your college name",
+      maxLength: 150,
+    },
+    {
+      label: "Graduation Year",
+      name: "graduationYear",
+      icon: Calendar,
+      placeholder: "e.g. 2027",
+      maxLength: 4,
+    },
+    {
+      label: "Location",
+      name: "location",
+      icon: MapPin,
+      placeholder: "e.g. Bengaluru, India",
+      maxLength: 100,
+    },
   ];
 
   function renderError(name) {
@@ -331,11 +482,7 @@ export default function Profile() {
                         onChange={handleChange}
                         disabled={!editing}
                         required
-                        maxLength={
-                          field.name === "phone" ? 10 :
-                          field.name === "graduationYear" ? 4 :
-                          undefined
-                        }
+                        maxLength={field.maxLength}
                         inputMode={
                           ["phone", "graduationYear"].includes(field.name)
                             ? "numeric"

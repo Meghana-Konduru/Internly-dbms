@@ -6,3 +6,9 @@ node_modules/
 dist/
 build/
 .env
+
+# Next.js generated files
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+frontend/.env*

@@ -38,7 +38,8 @@ from fastapi import FastAPI, HTTPException
 
 from app.database import test_db_connection
 from app.routers.auth import router as auth_router
-
+from app.routers.students import router as students_router
+from app.routers.skills import router as skills_router
 
 app = FastAPI(
     title="Internly API",
@@ -49,6 +50,8 @@ app = FastAPI(
 
 # Register authentication endpoints
 app.include_router(auth_router)
+app.include_router(students_router)
+app.include_router(skills_router)
 
 
 @app.get("/")

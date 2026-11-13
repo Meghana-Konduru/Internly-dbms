@@ -5,9 +5,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BriefcaseBusiness, ArrowRight } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Signup() {
   const router = useRouter();
+  const { apiRequest, login } = useAuth();
 
   const [form, setForm] = useState({
     name: "",
@@ -38,16 +40,19 @@ export default function Signup() {
     const name = form.name.trim();
     const email = form.email.trim().toLowerCase();
 
+    // Validate name
     if (!/^[\p{L}][\p{L}\s.'-]{1,98}$/u.test(name)) {
       setError("Enter a valid full name (2–99 characters).");
       return;
     }
 
+    // Validate email
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setError("Enter a valid email address.");
       return;
     }
 
+    // Validate password
     if (form.password.length < 8 || form.password.length > 64) {
       setError("Password must contain 8–64 characters.");
       return;
@@ -61,87 +66,49 @@ export default function Signup() {
       return;
     }
 
+    // Validate confirmation
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
+      return;
+    }
+
+    // Recruiter registration is not available in the supplied backend
+    if (form.role === "recruiter") {
+      setError(
+        "Recruiter registration is not available yet. Please use recruiter login."
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const accounts = JSON.parse(
-        localStorage.getItem("internly_demo_accounts") || "[]"
-      );
-
-      if (!Array.isArray(accounts)) {
-        throw new Error("Invalid account records.");
-      }
-
-      if (accounts.some((account) => account.email === email)) {
-        setError("An account with this email already exists.");
-        return;
-      }
-
-      const passwordHash = await hashPassword(form.password);
-
-      const account = {
-        id: `demo-${Date.now()}`,
-        name,
-        email,
-        role: form.role,
-        passwordHash,
-        createdAt: new Date().toISOString(),
-      };
-
-      if (form.role === "student") {
-        const students = JSON.parse(
-          localStorage.getItem("internly_students") || "[]"
-        );
-
-        if (!Array.isArray(students)) {
-          throw new Error("Invalid student records.");
-        }
-
-        const student = {
-          id: account.id,
-          profile: {
+      // Send student registration details to FastAPI
+      const response = await apiRequest(
+        "/api/auth/student/register",
+        {
+          method: "POST",
+          body: {
             name,
             email,
-            phone: "",
-            college: "",
-            degree: "",
-            graduationYear: "",
-            location: "",
-            skills: "",
-            about: "",
+            password: form.password,
           },
-          skills: [],
-          certifications: [],
-          resumeName: "",
-        };
-
-        localStorage.setItem(
-          "internly_students",
-          JSON.stringify([...students, student])
-        );
-      }
-
-      localStorage.setItem(
-        "internly_demo_accounts",
-        JSON.stringify([...accounts, account])
+        }
       );
 
-      setMessage("Account created successfully! Redirecting to login...");
+      // Save authenticated user and JWT token
+      login(response.user, response.access_token);
 
-      setTimeout(() => {
-        router.push(
-          form.role === "student" ? "/login" : "/recruiter/login"
-        );
-      }, 1000);
+      setMessage("Account created successfully! Redirecting...");
+
+      router.push("/dashboard");
 
     } catch (err) {
       console.error("Signup error:", err);
-      setError("Could not create your account. Please try again.");
+
+      setError(
+        err.message || "Could not create your account. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -304,19 +271,10 @@ export default function Signup() {
         </Link>
 
         <p className="mt-5 text-center text-xs text-gray-400">
-          Demo registration only. Real authentication and secure password storage require backend integration.
+          Secure registration powered by Internly backend.
         </p>
 
       </div>
     </main>
   );
-}
-
-async function hashPassword(password) {
-  const data = new TextEncoder().encode(password);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-
-  return Array.from(new Uint8Array(hash))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }

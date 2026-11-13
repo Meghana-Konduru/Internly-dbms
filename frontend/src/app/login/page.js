@@ -5,9 +5,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BriefcaseBusiness, ArrowRight } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
   const router = useRouter();
+  const { apiRequest, login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,6 +19,9 @@ export default function Login() {
 
   async function submit(e) {
     e.preventDefault();
+
+    if (loading) return;
+
     setError("");
     setMessage("");
 
@@ -35,86 +40,31 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const accounts = JSON.parse(
-        localStorage.getItem("internly_demo_accounts") || "[]"
-      );
-
-      if (!Array.isArray(accounts)) {
-        setError("Unable to read account records. Please try again.");
-        return;
-      }
-
-      const account = accounts.find(
-        (item) => item.email === normalizedEmail
-      );
-
-      if (!account) {
-        setError("No account found with this email. Please sign up first.");
-        return;
-      }
-
-      if (!account.passwordHash) {
-        setError(
-          "This account was created using the older signup version. Please register again with this email after removing its old demo account."
-        );
-        return;
-      }
-
-      const passwordHash = await hashPassword(password);
-
-      if (passwordHash !== account.passwordHash) {
-        setError("Incorrect password. Please try again.");
-        return;
-      }
-
-      if (account.role === "student") {
-        localStorage.setItem(
-          "internly_current_student",
-          JSON.stringify({
-            id: account.id,
-            name: account.name,
-            email: account.email,
-            role: "student",
-          })
-        );
-
-        const students = JSON.parse(
-          localStorage.getItem("internly_students") || "[]"
-        );
-
-        const student = students.find(
-          (item) => String(item.id) === String(account.id)
-        );
-
-        if (student?.profile) {
-          localStorage.setItem(
-            "internly_profile",
-            JSON.stringify(student.profile)
-          );
+      // Send login details to FastAPI
+      const response = await apiRequest(
+        "/api/auth/student/login",
+        {
+          method: "POST",
+          body: {
+            email: normalizedEmail,
+            password,
+          },
         }
+      );
 
-        setMessage("Login successful! Opening your dashboard...");
+      // Save user details and JWT token
+      login(response.user, response.access_token);
 
-        router.push("/dashboard");
-      } else if (account.role === "recruiter") {
-        localStorage.setItem(
-          "internly_recruiter",
-          JSON.stringify({
-            id: account.id,
-            name: account.name,
-            email: account.email,
-            loggedIn: true,
-          })
-        );
+      setMessage("Login successful! Opening your dashboard...");
 
-        setMessage("Login successful! Opening recruiter dashboard...");
+      router.push("/dashboard");
 
-        router.push("/recruiter/dashboard");
-      } else {
-        setError("Invalid account role. Please contact support.");
-      }
-    } catch {
-      setError("Something went wrong while logging in. Please try again.");
+    } catch (err) {
+      console.error("Login error:", err);
+
+      setError(
+        err.message || "Login failed. Please check your details and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -134,6 +84,7 @@ export default function Login() {
           <div className="rounded-xl bg-violet-600 p-2 text-white">
             <BriefcaseBusiness size={24} />
           </div>
+
           <span className="text-2xl font-extrabold text-[#211b35]">
             internly.
           </span>
@@ -169,6 +120,7 @@ export default function Login() {
 
           <label className="block text-sm font-semibold text-gray-800">
             Email address
+
             <input
               type="email"
               required
@@ -183,6 +135,7 @@ export default function Login() {
 
           <label className="block text-sm font-semibold text-gray-800">
             Password
+
             <input
               type="password"
               required
@@ -210,10 +163,11 @@ export default function Login() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 py-3.5 font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Logging in..." : "Log in"}
+
             {!loading && <ArrowRight size={18} />}
           </button>
         </form>
-        
+
         <p className="mt-8 text-center text-sm text-gray-600">
           Don't have an account?{" "}
           <Link
@@ -232,18 +186,10 @@ export default function Login() {
         </Link>
 
         <p className="mt-5 text-center text-xs text-gray-400">
-          Demo authentication only. Real authentication must use the backend.
+          Secure login powered by Internly backend.
         </p>
+
       </div>
     </main>
   );
-}
-
-async function hashPassword(password) {
-  const data = new TextEncoder().encode(password);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-
-  return Array.from(new Uint8Array(hash))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }

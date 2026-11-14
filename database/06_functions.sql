@@ -98,6 +98,10 @@ AS $$
         ON js.skill_id = ss.skill_id
     WHERE ss.student_id = p_student_id
       AND j.status = 'open'
+      AND (
+          j.deadline IS NULL
+          OR j.deadline >= CURRENT_DATE
+      )
       AND NOT EXISTS (
           SELECT 1
           FROM applications a
@@ -112,7 +116,6 @@ AS $$
         COUNT(js.skill_id) DESC,
         j.job_id;
 $$;
-
 
 -- ============================================================
 -- FUNCTION 5: ACCEPTANCE PERCENTAGE

@@ -6,6 +6,12 @@ from app.database import test_db_connection
 from app.routers.auth import router as auth_router
 from app.routers.students import router as students_router
 from app.routers.skills import router as skills_router
+from app.routers.certifications import router as certifications_router
+from app.routers.applications import router as applications_router
+from app.routers.recruiters import router as recruiters_router
+from app.routers.jobs import router as jobs_router
+from app.routers.recommendations import router as recommendations_router
+
 
 app = FastAPI(
     title="Internly API",
@@ -26,6 +32,11 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(students_router)
 app.include_router(skills_router)
+app.include_router(certifications_router)
+app.include_router(applications_router)
+app.include_router(recruiters_router)
+app.include_router(jobs_router)
+app.include_router(recommendations_router)
 
 
 @app.get("/")

@@ -13,7 +13,7 @@
 CREATE TABLE IF NOT EXISTS student_resume_embeddings (
     student_id INTEGER PRIMARY KEY,
     embedding VECTOR(384) NOT NULL,
-    model_name VARCHAR(100) NOT NULL DEFAULT 'all-MiniLM-L6-v2',
+    model_name VARCHAR(100) NOT NULL DEFAULT 'sentence-transformers/all-MiniLM-L6-v2',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_student_embedding
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS student_resume_embeddings (
 CREATE TABLE IF NOT EXISTS job_embeddings (
     job_id INTEGER PRIMARY KEY,
     embedding VECTOR(384) NOT NULL,
-    model_name VARCHAR(100) NOT NULL DEFAULT 'all-MiniLM-L6-v2',
+    model_name VARCHAR(100) NOT NULL DEFAULT 'sentence-transformers/all-MiniLM-L6-v2',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_job_embedding

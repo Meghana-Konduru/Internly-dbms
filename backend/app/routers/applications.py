@@ -93,6 +93,7 @@ def apply_to_job(
         }
 
     except PsycopgError as exc:
+        print("APPLICATION DATABASE ERROR:", repr(exc))
         connection.rollback()
 
         if exc.pgcode == "23505":

@@ -3,48 +3,49 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Bookmark,
-  Trash2,
-  Users,
-  UserRound,
-  GraduationCap,
-} from "lucide-react";
+import { ArrowLeft, BookmarkCheck } from "lucide-react";
+import { apiRequest } from "@/lib/api";
 
 export default function RecruiterShortlistPage() {
   const [candidates, setCandidates] = useState([]);
-  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadShortlistedCandidates() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const jobsData = await apiRequest("/api/recruiters/me/jobs");
+      const shortlisted = [];
+
+      for (const job of jobsData.jobs || []) {
+        const result = await apiRequest(
+          `/api/recruiters/me/jobs/${job.job_id}/applicants`
+        );
+
+        for (const applicant of result.applicants || []) {
+          if (applicant.application_status === "shortlisted") {
+            shortlisted.push({
+              ...applicant,
+              job_id: job.job_id,
+              job_title: job.title,
+            });
+          }
+        }
+      }
+
+      setCandidates(shortlisted);
+    } catch (err) {
+      setError(err.message || "Could not load shortlisted candidates.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    try {
-      const savedCandidates = JSON.parse(
-        localStorage.getItem("internly_candidate_shortlist") || "[]"
-      );
-      const savedStudents = JSON.parse(
-        localStorage.getItem("internly_students") || "[]"
-      );
-
-      setCandidates(Array.isArray(savedCandidates) ? savedCandidates : []);
-      setStudents(Array.isArray(savedStudents) ? savedStudents : []);
-    } catch {
-      setCandidates([]);
-      setStudents([]);
-    }
+    loadShortlistedCandidates();
   }, []);
-
-  function removeCandidate(id) {
-    const updated = candidates.filter(
-      (candidate) => String(candidate.id) !== String(id)
-    );
-
-    localStorage.setItem(
-      "internly_candidate_shortlist",
-      JSON.stringify(updated)
-    );
-
-    setCandidates(updated);
-  }
 
   return (
     <main className="min-h-screen bg-[#f8f7fc] px-5 py-8 text-[#211b35] md:px-10">
@@ -52,127 +53,111 @@ export default function RecruiterShortlistPage() {
 
         <Link
           href="/recruiter/dashboard"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-violet-700"
+          className="inline-flex items-center gap-2 font-semibold text-violet-700"
         >
-          <ArrowLeft size={17} />
+          <ArrowLeft size={18} />
           Dashboard
         </Link>
 
-        <div className="mt-6 flex items-center gap-3">
+        <div className="mt-7 flex items-center gap-3">
           <div className="rounded-xl bg-violet-100 p-3 text-violet-700">
-            <Bookmark size={25} />
+            <BookmarkCheck size={26} />
           </div>
 
           <div>
-            <p className="text-sm font-bold text-violet-600">
-              RECRUITER PORTAL
-            </p>
             <h1 className="text-3xl font-extrabold">
               Shortlisted Candidates
             </h1>
+            <p className="mt-1 text-gray-500">
+              Candidates shortlisted for your internships.
+            </p>
           </div>
         </div>
 
-        <p className="mt-2 text-sm text-gray-500">
-          Manage students you have shortlisted for potential internship opportunities.
-        </p>
-
-        <div className="mt-7 rounded-2xl border border-violet-100 bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Total shortlisted candidates</p>
-          <p className="mt-1 text-3xl font-extrabold">{candidates.length}</p>
+        <div className="mt-7 rounded-2xl border border-violet-100 bg-white p-6 shadow-sm">
+          <p className="text-sm text-gray-500">
+            Total shortlisted candidates
+          </p>
+          <p className="mt-1 text-3xl font-extrabold">
+            {candidates.length}
+          </p>
         </div>
 
-        {candidates.length > 0 ? (
-          <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {candidates.map((candidate) => {
-              const student = students.find(
-                (s) => String(s.id) === String(candidate.id)
-              );
+        {loading ? (
+          <p className="mt-8 text-center text-violet-700">
+            Loading shortlisted candidates...
+          </p>
+        ) : error ? (
+          <div className="mt-6 rounded-2xl bg-white p-6 text-center">
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={loadShortlistedCandidates}
+              className="mt-4 rounded-xl bg-violet-600 px-5 py-2 font-bold text-white"
+            >
+              Retry
+            </button>
+          </div>
+        ) : candidates.length > 0 ? (
+          <div className="mt-6 space-y-5">
+            {candidates.map((candidate) => (
+              <article
+                key={candidate.application_id}
+                className="rounded-2xl border border-violet-100 bg-white p-6 shadow-sm"
+              >
+                <h2 className="text-lg font-bold">
+                  {candidate.student_name}
+                </h2>
 
-              const profile = student?.profile || {};
+                <p className="mt-1 text-violet-700">
+                  {candidate.email}
+                </p>
 
-              return (
-                <article
-                  key={candidate.id}
-                  className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 text-violet-700">
-                      <UserRound size={23} />
-                    </div>
+                <p className="mt-3 text-sm text-gray-600">
+                  Internship: {candidate.job_title}
+                </p>
 
-                    <div className="min-w-0">
-                      <h2 className="truncate font-bold">
-                        {profile.name || candidate.name || "Student"}
-                      </h2>
-                      <p className="text-xs text-gray-500">
-                        Shortlisted candidate
-                      </p>
-                    </div>
-                  </div>
+                <p className="text-sm text-gray-600">
+                  Department: {candidate.department || "Not specified"}
+                </p>
 
-                  <div className="mt-5 space-y-2 text-sm text-gray-600">
-                    <p className="flex items-center gap-2">
-                      <GraduationCap size={17} className="text-violet-600" />
-                      {profile.degree || "Degree not available"}
-                    </p>
+                <p className="text-sm text-gray-600">
+                  Graduation year: {candidate.graduation_year || "Not specified"}
+                </p>
 
-                    <p className="text-xs text-gray-500">
-                      {profile.college || "College not available"}
-                    </p>
+                <p className="mt-3 text-sm font-semibold text-green-700">
+                  Status: Shortlisted
+                </p>
 
-                    <p className="text-xs text-gray-500">
-                      Added: {candidate.shortlistedAt
-                        ? new Date(candidate.shortlistedAt).toLocaleDateString()
-                        : "Date unavailable"}
-                    </p>
-                  </div>
-
-                  <div className="mt-5 flex gap-2">
-                    <Link
-                      href={`/recruiter/students/${encodeURIComponent(candidate.id)}`}
-                      className="flex-1 rounded-xl bg-violet-600 px-3 py-3 text-center text-sm font-bold text-white hover:bg-violet-700"
-                    >
-                      View profile
-                    </Link>
-
-                    <button
-                      onClick={() => removeCandidate(candidate.id)}
-                      aria-label={`Remove ${candidate.name} from shortlist`}
-                      className="rounded-xl border border-red-200 px-3 text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
+                {candidate.resume_url && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Resume: Available in student profile
+                  </p>
+                )}
+              </article>
+            ))}
           </div>
         ) : (
           <div className="mt-6 rounded-2xl border border-violet-100 bg-white p-12 text-center">
-            <Users size={38} className="mx-auto text-violet-400" />
-
+            <BookmarkCheck
+              size={38}
+              className="mx-auto text-violet-400"
+            />
             <h2 className="mt-4 text-lg font-bold">
               No shortlisted candidates yet
             </h2>
-
             <p className="mt-2 text-sm text-gray-500">
-              Explore student profiles and use the Shortlist Candidate button to add candidates here.
+              Shortlist applicants from the Applicants page to see them here.
             </p>
 
             <Link
-              href="/recruiter/students"
-              className="mt-5 inline-flex rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white hover:bg-violet-700"
+              href="/recruiter/applicants"
+              className="mt-5 inline-flex rounded-xl bg-violet-600 px-5 py-3 font-bold text-white"
             >
-              Explore students
+              View Applicants
             </Link>
           </div>
         )}
 
-        <p className="mt-6 text-xs text-gray-400">
-          Demo version: shortlisted candidates are stored in this browser.
-          Shared recruiter shortlists require backend integration.
-        </p>
       </div>
     </main>
   );

@@ -1439,9 +1439,8 @@ def create_job(
                     detail="Created job could not be retrieved"
                 )
 
-            # Generate and store the job's semantic embedding.
-            generate_and_save_job_embedding(cursor, job_id)
-
+            # TEMPORARILY DISABLED: insufficient disk space for embedding model
+# generate_and_save_job_embedding(cursor, job_id)
         connection.commit()
 
         return {

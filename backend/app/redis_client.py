@@ -26,7 +26,7 @@ def set_cache(key, value, expiry=300):
         redis_client.setex(
             key,
             expiry,
-            json.dumps(value)
+            json.dumps(value, default=str)
         )
         return True
     except redis.RedisError:

@@ -4,14 +4,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import { BriefcaseBusiness } from "lucide-react";
+import { apiRequest } from "@/lib/api";
 
 export default function RecruiterLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
+    setMessage("");
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return setMessage("Enter a valid email address.");
@@ -23,15 +26,42 @@ export default function RecruiterLogin() {
       );
     }
 
-    localStorage.setItem(
-      "internly_recruiter",
-      JSON.stringify({
-        email,
-        loggedIn: true,
-      })
-    );
+    try {
+      setLoading(true);
 
-    window.location.href = "/recruiter/dashboard";
+      const data = await apiRequest(
+        "/api/auth/recruiter/login",
+        {
+          method: "POST",
+          body: {
+            email: email.trim(),
+            password,
+          },
+        }
+      );
+
+      if (data.role !== "recruiter" || !data.access_token) {
+        throw new Error("Invalid recruiter login response.");
+      }
+
+      sessionStorage.setItem(
+        "internly_access_token",
+        data.access_token
+      );
+
+      sessionStorage.setItem(
+        "internly_user",
+        JSON.stringify(data.user)
+      );
+
+      sessionStorage.setItem("internly_role", "recruiter");
+
+      window.location.href = "/recruiter/dashboard";
+    } catch (error) {
+      setMessage(error.message || "Recruiter login failed.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -53,10 +83,7 @@ export default function RecruiterLogin() {
               INTERNLY RECRUITER
             </p>
 
-            <h1
-              className="text-2xl font-extrabold"
-              style={{ color: "#211b35" }}
-            >
+            <h1 className="text-2xl font-extrabold">
               Recruiter login
             </h1>
           </div>
@@ -75,35 +102,20 @@ export default function RecruiterLogin() {
           </p>
         )}
 
-        <form
-          onSubmit={submit}
-          className="mt-6 space-y-4"
-        >
-          <label
-            className="block text-sm font-semibold"
-            style={{ color: "#211b35" }}
-          >
+        <form onSubmit={submit} className="mt-6 space-y-4">
+          <label className="block text-sm font-semibold">
             Work email
-
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1 w-full rounded-xl border p-3 font-normal"
-              style={{
-                color: "#211b35",
-                backgroundColor: "#ffffff",
-              }}
             />
           </label>
 
-          <label
-            className="block text-sm font-semibold"
-            style={{ color: "#211b35" }}
-          >
+          <label className="block text-sm font-semibold">
             Password
-
             <input
               type="password"
               required
@@ -111,22 +123,17 @@ export default function RecruiterLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mt-1 w-full rounded-xl border p-3 font-normal"
-              style={{
-                color: "#211b35",
-                backgroundColor: "#ffffff",
-              }}
             />
           </label>
 
-          <button className="w-full rounded-xl bg-violet-600 p-3 font-bold text-white hover:bg-violet-700">
-            Sign in
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-violet-600 p-3 font-bold text-white hover:bg-violet-700 disabled:opacity-60"
+          >
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
-
-        <p className="mt-5 text-center text-xs text-gray-400">
-          Demo-only login; connect real authentication
-          through the backend before deployment.
-        </p>
 
         <Link
           href="/"

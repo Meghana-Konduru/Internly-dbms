@@ -1,6 +1,6 @@
 
 "use client";
-
+import { apiRequest } from "@/lib/api";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -30,44 +30,18 @@ export default function Matches() {
     }
   }, []);
 
-  function handleApply(job) {
-    try {
-      const existing = JSON.parse(
-        localStorage.getItem("internly_applications") || "[]"
-      );
+  async function handleApply(job) {
+  try {
+    await apiRequest(
+      `/api/students/me/applications/${job.id}`,
+      { method: "POST" }
+    );
 
-      const alreadyApplied = existing.some(
-        (app) => app.id === job.id
-      );
-
-      if (alreadyApplied) {
-        alert("You have already applied to this internship!");
-        return;
-      }
-
-      const newApplication = {
-        ...job,
-        status: "Applied",
-        appliedOn: new Date().toLocaleDateString(),
-      };
-
-      const updatedApplications = [
-        ...existing,
-        newApplication,
-      ];
-
-      localStorage.setItem(
-        "internly_applications",
-        JSON.stringify(updatedApplications)
-      );
-
-      alert("Application added successfully!");
-    } catch (error) {
-      console.error("Application error:", error);
-      alert("Something went wrong. Please try again.");
-    }
+    alert("Application submitted successfully!");
+  } catch (error) {
+    alert(error.message || "Could not submit application.");
   }
-
+}
   return (
     <main className="min-h-screen bg-[#f8f7fc] text-[#211b35] md:flex">
 

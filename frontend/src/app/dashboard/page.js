@@ -40,12 +40,7 @@ export default function StudentDashboard() {
       href: "/profile",
       icon: UserRound,
     },
-    {
-      title: "My Skills",
-      description: "Add your skills and certifications.",
-      href: "/skills",
-      icon: Sparkles,
-    },
+    
     {
       title: "Discover Internships",
       description: "Explore internship opportunities.",

@@ -1,19 +1,175 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
+import { apiRequest } from "@/lib/api";
 
 export default function ApplicantsPage() {
-  const [apps,setApps] = useState([]);
-  useEffect(()=>{try{setApps(JSON.parse(localStorage.getItem("internly_applications")||"[]"));}catch{}},[]);
-  function updateStatus(id,status){
-    const updated=apps.map(a=>a.id===id?{...a,status}:a);
-    setApps(updated);localStorage.setItem("internly_applications",JSON.stringify(updated));
+  const [jobs, setJobs] = useState([]);
+  const [applicants, setApplicants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [updating, setUpdating] = useState(null);
+
+  async function loadApplicants() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const jobsData = await apiRequest("/api/recruiters/me/jobs");
+      const allApplicants = [];
+
+      for (const job of jobsData.jobs || []) {
+        const result = await apiRequest(
+          `/api/recruiters/me/jobs/${job.job_id}/applicants`
+        );
+
+        for (const applicant of result.applicants || []) {
+          allApplicants.push({
+            ...applicant,
+            job_id: job.job_id,
+            job_title: job.title,
+          });
+        }
+      }
+
+      setJobs(jobsData.jobs || []);
+      setApplicants(allApplicants);
+    } catch (err) {
+      setError(err.message || "Could not load applicants.");
+    } finally {
+      setLoading(false);
+    }
   }
-  return <main className="min-h-screen bg-[#f8f7fc] px-5 py-8 text-[#211b35] md:px-10"><div className="mx-auto max-w-5xl"><Link href="/recruiter/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-violet-700"><ArrowLeft size={17}/>Dashboard</Link><div className="mt-5 flex items-center gap-3"><Users className="text-violet-600"/><h1 className="text-3xl font-extrabold">Applicants</h1></div><p className="mt-2 text-sm text-gray-500">Review application records in this browser demo.</p>
-    <div className="mt-7 space-y-3">{apps.map(app=><article key={app.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-violet-100 bg-white p-5 shadow-sm"><div><p className="font-bold">{app.role}</p><p className="mt-1 text-sm text-violet-700">{app.company}</p><p className="mt-1 text-xs text-gray-500">Applied: {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Date unavailable"}</p><p className="mt-1 text-xs text-gray-500">Student ID/name will appear after student authentication and backend integration.</p></div><div className="flex items-center gap-2"><span className="text-xs text-gray-500">Status</span><select value={app.status||"Applied"} onChange={e=>updateStatus(app.id,e.target.value)} className="rounded-lg border p-2 text-sm"><option>Applied</option><option>Under Review</option><option>Shortlisted</option><option>Rejected</option><option>Accepted</option></select></div></article>)}
-    {!apps.length&&<div className="rounded-2xl bg-white p-12 text-center text-gray-500">No applications are available in this browser yet.</div>}</div>
-    <p className="mt-5 text-xs text-gray-400">Important: browser local storage is device-specific and is not a real shared recruiter applicant database.</p>
-  </div></main>;
+
+  useEffect(() => {
+    loadApplicants();
+  }, []);
+
+  async function updateStatus(applicationId, status) {
+    try {
+      setUpdating(applicationId);
+
+      await apiRequest(
+        `/api/recruiters/me/applications/${applicationId}/status`,
+        {
+          method: "PATCH",
+          body: { status },
+        }
+      );
+
+      await loadApplicants();
+    } catch (err) {
+      setError(err.message || "Could not update applicant status.");
+    } finally {
+      setUpdating(null);
+    }
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f8f7fc] px-5 py-8 text-[#211b35] md:px-10">
+      <div className="mx-auto max-w-6xl">
+        <Link
+          href="/recruiter/dashboard"
+          className="inline-flex items-center gap-2 font-semibold text-violet-700"
+        >
+          <ArrowLeft size={18} /> Dashboard
+        </Link>
+
+        <div className="mt-6 flex items-center gap-3">
+          <Users className="text-violet-600" size={30} />
+          <div>
+            <h1 className="text-3xl font-extrabold">Applicants</h1>
+            <p className="text-sm text-gray-500">
+              Applications received for your internships
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-violet-100 bg-white p-5">
+          <p className="text-sm text-gray-500">Your internships</p>
+          <p className="text-3xl font-extrabold">{jobs.length}</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Total applicants: {applicants.length}
+          </p>
+        </div>
+
+        {loading ? (
+          <p className="mt-8 text-center text-violet-700">
+            Loading applicants...
+          </p>
+        ) : error ? (
+          <div className="mt-6 rounded-xl bg-white p-5 text-red-600">
+            {error}
+            <button onClick={loadApplicants} className="ml-3 underline">
+              Retry
+            </button>
+          </div>
+        ) : applicants.length === 0 ? (
+          <div className="mt-6 rounded-xl bg-white p-10 text-center text-gray-500">
+            No applicants have applied to your internships yet.
+          </div>
+        ) : (
+          <div className="mt-6 space-y-4">
+            {applicants.map((app) => (
+              <article
+                key={app.application_id}
+                className="rounded-2xl border border-violet-100 bg-white p-5 shadow-sm"
+              >
+                <h2 className="text-lg font-bold">{app.student_name}</h2>
+                <p className="text-sm text-violet-700">{app.email}</p>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Internship: {app.job_title}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Department: {app.department || "Not specified"}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Graduation year: {app.graduation_year || "Not specified"}
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  Application status: {app.application_status}
+                </p>
+
+                {app.resume_url && (
+                  <p className="mt-2 text-sm">
+                    Resume: Available in student profile
+                  </p>
+                )}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    disabled={updating === app.application_id}
+                    onClick={() => updateStatus(app.application_id, "shortlisted")}
+                    className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    Shortlist
+                  </button>
+
+                  <button
+                    disabled={updating === app.application_id}
+                    onClick={() => updateStatus(app.application_id, "accepted")}
+                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    Accept
+                  </button>
+
+                  <button
+                    disabled={updating === app.application_id}
+                    onClick={() => updateStatus(app.application_id, "rejected")}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
 }

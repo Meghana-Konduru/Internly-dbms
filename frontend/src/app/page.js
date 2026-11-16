@@ -39,13 +39,13 @@ export default function Home() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/login"
+            href="/choose-role"
             className="hidden rounded-xl px-4 py-2.5 text-sm font-semibold hover:text-violet-600 sm:block"
           >
             Log in
           </Link>
           <Link
-            href="/signup"
+            href="/choose-role"
             className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200 hover:bg-violet-700"
           >
             Get started
@@ -75,7 +75,7 @@ export default function Home() {
 
           <div className="mt-9 flex flex-wrap gap-4">
             <Link
-              href="/signup"
+              href="/choose-role"
               className="flex items-center gap-3 rounded-xl bg-violet-600 px-7 py-4 font-semibold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-1 hover:bg-violet-700"
             >
               Explore internships
@@ -224,7 +224,7 @@ export default function Home() {
           Take control of your career journey. Your next big opportunity could
           be waiting for you.
         </p>
-        <Link href="/signup" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 font-bold text-violet-700 hover:bg-violet-50">
+        <Link href="/choose-role" className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-4 font-bold text-violet-700 hover:bg-violet-50">
           Get started <ArrowRight size={18} />
         </Link>
       </section>

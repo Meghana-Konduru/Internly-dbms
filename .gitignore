@@ -16,3 +16,4 @@ frontend/.env*
 backend/.env
 backend/venv/
 backend/requirements-windows.txt
+backend/uploads/
